@@ -1,0 +1,424 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avance de malla — Ingeniería de Sistemas</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0B0910; --panel:#171126; --panel-2:#1E1633;
+    --line:#2C2340; --line-2:#3E3159;
+    --txt:#EEE9F7; --txt-2:#A79EBE; --txt-3:#6E6688;
+    --vio:#A78BFA; --vio-2:#7C5CE0; --vio-deep:#4A3391;
+    --amb:#F0B266; --amb-line:#7A5A2A;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--txt); overflow-x:hidden;
+    font:400 15px/1.55 "Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- fondo con paralaje ---------- */
+  .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg)}
+  .blob{position:absolute;border-radius:50%;filter:blur(90px);will-change:transform}
+  .b1{width:640px;height:640px;left:-160px;top:-180px;background:rgba(124,92,224,.30)}
+  .b2{width:520px;height:520px;right:-140px;top:280px;background:rgba(167,139,250,.16)}
+  .b3{width:700px;height:700px;left:22%;top:1100px;background:rgba(74,51,145,.28)}
+  .mesh{position:absolute;inset:-40% -10%;will-change:transform;opacity:.5;
+    background-image:linear-gradient(rgba(167,139,250,.055) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(167,139,250,.055) 1px,transparent 1px);
+    background-size:64px 64px}
+  .veil{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 0%,transparent 30%,var(--bg) 100%)}
+
+  .wrap{max-width:1240px;margin:0 auto;padding:56px 20px 96px;position:relative}
+
+  h1{font-size:30px;font-weight:600;letter-spacing:-.025em;margin:0;will-change:transform}
+  .sub{color:var(--txt-2);font-size:14px;margin:8px 0 0;will-change:transform}
+
+  /* ---------- resumen ---------- */
+  .summary{margin:34px 0 8px;background:rgba(23,17,38,.62);backdrop-filter:blur(14px);
+           border:1px solid var(--line);border-radius:14px;padding:24px}
+  .figs{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-end}
+  .fig .n{font-size:38px;font-weight:600;letter-spacing:-.03em;line-height:1}
+  .fig .l{font-size:12.5px;color:var(--txt-2);margin-top:6px}
+  .fig.done .n{color:var(--vio)} .fig.now .n{color:var(--amb)}
+
+  .rail{margin-top:24px;height:12px;border-radius:6px;background:#241B3C;display:flex;overflow:hidden}
+  .rail i{display:block;height:100%;transition:width .35s ease}
+  .rail .s-done{background:var(--vio-2)}
+  .rail .s-now{background:var(--amb)}
+  .railtags{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--txt-3)}
+
+  /* ---------- controles ---------- */
+  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:26px 0 20px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--txt-2);margin-right:auto}
+  .legend span{display:flex;align-items:center;gap:7px}
+  .sw{width:11px;height:11px;border-radius:3px;border:1px solid var(--line-2);background:var(--panel)}
+  .sw.done{background:var(--vio-2);border-color:var(--vio)}
+  .sw.now{background:rgba(240,178,102,.22);border-color:var(--amb-line)}
+  button{font:inherit;font-size:13px;color:var(--txt);background:var(--panel);
+         border:1px solid var(--line-2);border-radius:7px;padding:8px 14px;cursor:pointer;
+         transition:border-color .15s,background .15s}
+  button:hover{border-color:var(--vio-2);background:var(--panel-2)}
+  button:focus-visible,.course:focus-visible{outline:2px solid var(--vio);outline-offset:2px}
+  #btn-reset[data-armed]{color:var(--amb);border-color:var(--amb-line);background:rgba(240,178,102,.11)}
+  #saved{font-size:12.5px;color:var(--txt-3);min-width:120px}
+
+  /* ---------- malla ---------- */
+  .grid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:9px;align-items:start}
+  .col{min-width:0}
+  .colhead{padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid var(--line)}
+  .colhead b{font-size:12.5px;font-weight:600;display:block;color:var(--txt)}
+  .colhead em{font-style:normal;font-size:11.5px;color:var(--txt-3)}
+  .meter{height:3px;background:#241B3C;margin-top:7px;border-radius:2px;overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--vio-2);transition:width .3s ease}
+
+  .course{display:block;width:100%;text-align:left;background:rgba(23,17,38,.72);
+          border:1px solid var(--line);border-radius:7px;padding:8px 9px;margin-bottom:6px;
+          cursor:pointer;font:inherit;color:var(--txt);transition:border-color .15s,background .15s}
+  .course:hover{border-color:var(--line-2);background:var(--panel-2)}
+  .course .nm{font-size:12px;line-height:1.32;display:block}
+  .course .cr{font-size:11px;color:var(--txt-3);display:block;margin-top:4px}
+  .course[data-s="a"]{background:rgba(124,92,224,.17);border-color:#523E96}
+  .course[data-s="a"] .nm{text-decoration:line-through;text-decoration-thickness:1px;color:#C6B4FF}
+  .course[data-s="a"] .cr{color:#8F7FC4}
+  .course[data-s="c"]{background:rgba(240,178,102,.11);border-color:var(--amb-line)}
+  .course[data-s="c"] .nm{color:var(--amb)}
+  .course[data-s="c"] .cr{color:#A9814C}
+
+  /* ---------- proyección ---------- */
+  .proj{margin-top:52px;background:rgba(23,17,38,.62);backdrop-filter:blur(14px);
+        border:1px solid var(--line);border-radius:14px;padding:26px}
+  .proj h2{font-size:19px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
+  .proj p{margin:0;color:var(--txt-2);font-size:13.5px;max-width:68ch}
+  .inputs{display:flex;flex-wrap:wrap;gap:22px;align-items:center;margin:22px 0}
+  label{font-size:13px;color:var(--txt-2);display:flex;align-items:center;gap:9px}
+  input[type=number],select{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line-2);
+         border-radius:6px;background:var(--panel);color:var(--txt)}
+  input[type=number]{width:74px}
+  input[type=checkbox]{accent-color:var(--vio-2);width:15px;height:15px}
+  table{border-collapse:collapse;font-size:13px;margin-top:6px;width:100%;max-width:520px}
+  th,td{text-align:left;padding:7px 20px 7px 0;border-bottom:1px solid var(--line)}
+  th{font-weight:500;color:var(--txt-3);font-size:12px}
+  tr.inter td{color:var(--txt-3)}
+  tr.last td{font-weight:600;color:var(--vio)}
+  .verdict{margin-top:18px;font-size:15px}
+  .verdict b{color:var(--vio)}
+  .note{margin-top:12px;font-size:12.5px;color:var(--txt-3);max-width:68ch}
+
+  @media (max-width:1080px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px} }
+  @media (max-width:620px){
+    .grid{grid-template-columns:1fr} .figs{gap:22px} .fig .n{font-size:30px}
+    .wrap{padding:36px 16px 72px} h1{font-size:25px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+</style>
+
+<div class="bg" aria-hidden="true">
+  <span class="mesh" id="l-mesh"></span>
+  <span class="blob b1" id="l-b1"></span>
+  <span class="blob b2" id="l-b2"></span>
+  <span class="blob b3" id="l-b3"></span>
+  <span class="veil"></span>
+</div>
+
+<div class="wrap">
+  <h1 id="l-h1">Avance de malla</h1>
+  <p class="sub" id="l-sub">Ingeniería de Sistemas · 150 créditos · toca cada materia para cambiar su estado</p>
+
+  <section class="summary">
+    <div class="figs">
+      <div class="fig done"><div class="n" id="f-a">—</div><div class="l">créditos aprobados</div></div>
+      <div class="fig now"><div class="n" id="f-c">—</div><div class="l">cursando</div></div>
+      <div class="fig"><div class="n" id="f-p">—</div><div class="l">pendientes</div></div>
+      <div class="fig"><div class="n" id="f-pct">—</div><div class="l">de la carrera</div></div>
+    </div>
+    <div class="rail"><i class="s-done" id="r-a"></i><i class="s-now" id="r-c"></i></div>
+    <div class="railtags"><span>0</span><span id="r-txt"></span><span>150</span></div>
+  </section>
+
+  <div class="bar">
+    <div class="legend">
+      <span><i class="sw done"></i> Aprobada</span>
+      <span><i class="sw now"></i> Cursando</span>
+      <span><i class="sw"></i> Pendiente</span>
+    </div>
+    <span id="saved"></span>
+    <button id="btn-reset">Vaciar la malla</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <section class="proj">
+    <h2>Cuándo terminas</h2>
+    <p>Suponiendo que apruebes lo que estás cursando ahora, y arrancando el conteo desde el semestre que elijas.</p>
+    <div class="inputs">
+      <label>Créditos por semestre <input type="number" id="in-cr" min="1" max="24" value="16"></label>
+      <label>Empiezo a contar en <select id="in-start"></select></label>
+      <label><input type="checkbox" id="in-int" checked> Intersemestral a mitad de año (2 créditos)</label>
+    </div>
+    <table id="plan"></table>
+    <div class="verdict" id="verdict"></div>
+    <p class="note">El cálculo es solo de créditos. Los prerrequisitos encadenados pueden alargarlo: Trabajo de Grado I y II van en semestres regulares consecutivos, así que ningún plan termina antes de recorrer los niveles que te falten.</p>
+  </section>
+</div>
+
+<script>
+const KEY = 'malla:estado';
+
+// nivel, código, nombre, créditos, estado inicial (a=aprobada, c=cursando, p=pendiente)
+const MALLA = [
+ [1,'25941','Cálculo diferencial',3,'p'],[1,'26130','Matemáticas discretas',2,'p'],
+ [1,'25942','Física newtoniana',3,'p'],[1,'2','Programación básica',3,'p'],
+ [1,'26131','Arquitectura de computadores',3,'p'],[1,'25943','Seminario de introducción a ingeniería',1,'p'],
+ [1,'4','Cátedra Francisco José de Caldas',1,'p'],
+
+ [2,'7','Cálculo integral',3,'p'],[2,'9','Álgebra lineal',3,'p'],
+ [2,'25944','Electromagnetismo',3,'p'],[2,'10','Programación orientada a objetos',3,'p'],
+ [2,'409','Teoría de sistemas',2,'p'],[2,'8','Historia y cultura colombiana',2,'p'],
+ [2,'12','Cátedra democracia y ciudadanía',1,'p'],
+
+ [3,'16','Cálculo multivariado',3,'p'],[3,'26132','Probabilidad y estadística',3,'p'],
+ [3,'423','Ciencias de la computación I',3,'p'],[3,'410','Programación avanzada',3,'p'],
+ [3,'26133','Análisis y diseño de sistemas',2,'p'],[3,'—','Extrínseca I',1,'p'],
+ [3,'26134','Grupo de trabajo',1,'p'],
+
+ [4,'88','Ecuaciones diferenciales',3,'p'],[4,'26135','Métodos numéricos',2,'p'],
+ [4,'26136','Ciencias de la computación II',3,'p'],[4,'26137','Modelos de programación',3,'p'],
+ [4,'26138','Investigación de operaciones I',2,'p'],[4,'—','Extrínseca II',2,'p'],
+ [4,'47','Economía',2,'p'],
+
+ [5,'415','Matemáticas especiales',3,'p'],[5,'437','Fundamentos de ingeniería de software',3,'p'],
+ [5,'26139','Fundamentos de redes de comunicaciones',3,'p'],[5,'26140','Bases de datos',3,'p'],
+ [5,'26141','Fundamentos de ciencia de sistemas',3,'p'],[5,'26142','Investigación de operaciones II',2,'p'],
+
+ [6,'26143','Procesos estocásticos',3,'p'],[6,'—','Curso obligatorio I RF',3,'p'],
+ [6,'—','Curso obligatorio II RF',3,'p'],[6,'—','Curso electivo flexible I RF',4,'p'],
+ [6,'—','Extrínseca III',2,'p'],[6,'53','Ingeniería económica',2,'p'],
+
+ [7,'—','Curso obligatorio III RF',3,'p'],[7,'—','Curso obligatorio IV RF',3,'p'],
+ [7,'—','Curso electivo flexible II RF',4,'p'],[7,'26148','Sistemas operativos',3,'p'],
+ [7,'26149','Teoría de la información',2,'p'],[7,'26150','Metodología de la investigación',2,'p'],
+
+ [8,'—','Curso electivo I RF',4,'p'],[8,'—','Curso electivo II RF',4,'p'],
+ [8,'—','Curso electivo flexible III RF',4,'p'],[8,'25956','Formulación y evaluación de proyectos',2,'p'],
+ [8,'26151','Grupo de investigación',1,'p'],[8,'26152','Trabajo de grado I',1,'p'],
+
+ [9,'—','Curso electivo III RF',4,'p'],[9,'—','Curso electivo IV RF',4,'p'],
+ [9,'—','Curso electivo flexible IV RF',4,'p'],[9,'18','Ética y bioética',2,'p'],
+ [9,'26153','Trabajo de grado II',3,'p']
+];
+
+const TOTAL = MALLA.reduce((s,m)=>s+m[3],0);
+const NEXT = {p:'c', c:'a', a:'p'};
+const ETIQUETA = {p:'pendiente', c:'cursando', a:'aprobada'};
+let estado = MALLA.map(m=>m[4]);
+let guardando = null;
+
+/* ---------- persistencia ----------
+   localStorage es el mecanismo principal: funciona con el archivo abierto
+   directamente en el navegador. window.storage queda como respaldo para
+   cuando la página corre dentro de un visor que bloquea localStorage. */
+const almacen = {
+  async leer(){
+    try{ const v = localStorage.getItem(KEY); if (v !== null) return v; }catch(e){}
+    try{ const r = await window.storage.get(KEY); if (r) return r.value; }catch(e){}
+    return null;
+  },
+  async escribir(texto){
+    let ok = false;
+    try{ localStorage.setItem(KEY, texto); ok = true; }catch(e){}
+    try{ if (window.storage){ await window.storage.set(KEY, texto); ok = true; } }catch(e){}
+    return ok;
+  }
+};
+async function cargar(){
+  try{
+    const v = JSON.parse(await almacen.leer());
+    if (Array.isArray(v) && v.length === MALLA.length) estado = v;
+  }catch(e){ /* primera vez: se queda el estado inicial */ }
+}
+function guardar(){
+  clearTimeout(guardando);
+  guardando = setTimeout(async ()=>{
+    const el = document.getElementById('saved');
+    const ok = await almacen.escribir(JSON.stringify(estado));
+    el.textContent = ok ? 'Cambios guardados' : 'No se pudo guardar en este navegador';
+    setTimeout(()=>{ el.textContent=''; }, 2200);
+  }, 350);
+}
+
+/* ---------- malla ---------- */
+function pintarMalla(){
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  for (let n = 1; n <= 9; n++){
+    const idx = MALLA.map((m,i)=>[m,i]).filter(([m])=>m[0]===n);
+    const tot = idx.reduce((s,[m])=>s+m[3],0);
+    const apr = idx.reduce((s,[m,i])=>s+(estado[i]==='a'?m[3]:0),0);
+    const col = document.createElement('section');
+    col.className = 'col';
+    col.innerHTML = '<div class="colhead"><b>Nivel '+n+'</b><em>'+apr+' de '+tot+' créditos</em>'+
+                    '<div class="meter"><i style="width:'+(apr/tot*100)+'%"></i></div></div>';
+    for (const [m,i] of idx){
+      const b = document.createElement('button');
+      b.className = 'course';
+      b.dataset.s = estado[i];
+      b.setAttribute('aria-label', m[2]+', '+m[3]+' créditos, '+ETIQUETA[estado[i]]);
+      b.innerHTML = '<span class="nm"></span><span class="cr">'+m[3]+' cr'+(m[1]!=='—'?' · '+m[1]:'')+'</span>';
+      b.querySelector('.nm').textContent = m[2];
+      b.onclick = ()=>{
+        estado[i] = NEXT[estado[i]];
+        b.dataset.s = estado[i];
+        b.setAttribute('aria-label', m[2]+', '+m[3]+' créditos, '+ETIQUETA[estado[i]]);
+        actualizar();
+        guardar();
+      };
+      col.appendChild(b);
+    }
+    g.appendChild(col);
+  }
+}
+function refrescarMedidores(){
+  document.querySelectorAll('.col').forEach((col,k)=>{
+    const n = k+1;
+    const idx = MALLA.map((m,i)=>[m,i]).filter(([m])=>m[0]===n);
+    const tot = idx.reduce((s,[m])=>s+m[3],0);
+    const apr = idx.reduce((s,[m,i])=>s+(estado[i]==='a'?m[3]:0),0);
+    col.querySelector('em').textContent = apr+' de '+tot+' créditos';
+    col.querySelector('.meter i').style.width = (apr/tot*100)+'%';
+  });
+}
+
+/* ---------- resumen ---------- */
+function contar(){
+  let a=0,c=0,p=0;
+  MALLA.forEach((m,i)=>{ const s=estado[i]; if(s==='a')a+=m[3]; else if(s==='c')c+=m[3]; else p+=m[3]; });
+  return {a,c,p};
+}
+function pintarResumen(){
+  const {a,c,p} = contar();
+  document.getElementById('f-a').textContent = a;
+  document.getElementById('f-c').textContent = c;
+  document.getElementById('f-p').textContent = p;
+  document.getElementById('f-pct').textContent = Math.round(a/TOTAL*100)+'%';
+  document.getElementById('r-a').style.width = (a/TOTAL*100)+'%';
+  document.getElementById('r-c').style.width = (c/TOTAL*100)+'%';
+  document.getElementById('r-txt').textContent = a+' de '+TOTAL+' créditos';
+}
+
+/* ---------- proyección ---------- */
+function llenarSemestres(){
+  const sel = document.getElementById('in-start');
+  const hoy = new Date().getFullYear();
+  let html = '';
+  for (let y = hoy; y <= hoy+4; y++) for (const per of [1,3]) {
+    html += '<option value="'+y+'-'+per+'">'+y+'-'+per+'</option>';
+  }
+  sel.innerHTML = html;
+  sel.value = (hoy+1)+'-1';
+}
+function pintarPlan(){
+  const {a,c,p} = contar();
+  const porSem = Math.max(1, +document.getElementById('in-cr').value || 16);
+  const usaInt = document.getElementById('in-int').checked;
+  const [y0,p0] = document.getElementById('in-start').value.split('-').map(Number);
+
+  let acum = a + c, año = y0, per = p0, filas = '', ultimo = '', vueltas = 0;
+  if (p === 0){
+    document.getElementById('plan').innerHTML = '';
+    document.getElementById('verdict').innerHTML = 'Ya tienes los 150 créditos completos.';
+    return;
+  }
+  while (acum < TOTAL && vueltas++ < 40){
+    const suma = Math.min(porSem, TOTAL - acum);
+    acum += suma;
+    ultimo = año+'-'+per;
+    filas += '<tr'+(acum>=TOTAL?' class="last"':'')+'><td>'+año+'-'+per+'</td><td>'+suma+' cr</td><td>'+acum+' de '+TOTAL+'</td></tr>';
+    if (acum >= TOTAL) break;
+    if (per === 1){
+      if (usaInt){
+        const s2 = Math.min(2, TOTAL - acum);
+        acum += s2;
+        ultimo = 'intersemestral '+año;
+        filas += '<tr class="inter'+(acum>=TOTAL?' last':'')+'"><td>intersemestral '+año+'</td><td>'+s2+' cr</td><td>'+acum+' de '+TOTAL+'</td></tr>';
+        if (acum >= TOTAL) break;
+      }
+      per = 3;
+    } else { per = 1; año++; }
+  }
+  document.getElementById('plan').innerHTML =
+    '<tr><th>Periodo</th><th>Inscribes</th><th>Acumulado</th></tr>' + filas;
+  document.getElementById('verdict').innerHTML =
+    'Con '+porSem+' créditos por semestre terminas en <b>'+ultimo+'</b>.';
+}
+
+function actualizar(){ pintarResumen(); refrescarMedidores(); pintarPlan(); }
+
+/* ---------- paralaje ---------- */
+function paralaje(){
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const capas = [
+    [document.getElementById('l-mesh'), .06, 4],
+    [document.getElementById('l-b1'),   .22, 26],
+    [document.getElementById('l-b2'),  -.16, 18],
+    [document.getElementById('l-b3'),   .34, 30],
+    [document.getElementById('l-h1'),   .10, 0],
+    [document.getElementById('l-sub'),  .06, 0]
+  ];
+  let mx = 0, my = 0, tx = 0, ty = 0, pedido = false;
+  function dibujar(){
+    pedido = false;
+    tx += (mx - tx) * .08;
+    ty += (my - ty) * .08;
+    const y = window.scrollY;
+    for (const [el, kScroll, kRaton] of capas){
+      if (!el) continue;
+      el.style.transform =
+        'translate3d('+(tx*kRaton).toFixed(2)+'px,'+(y*kScroll + ty*kRaton).toFixed(2)+'px,0)';
+    }
+    if (Math.abs(mx-tx) > .1 || Math.abs(my-ty) > .1) pedir();
+  }
+  function pedir(){ if (!pedido){ pedido = true; requestAnimationFrame(dibujar); } }
+  addEventListener('scroll', pedir, {passive:true});
+  addEventListener('mousemove', e=>{
+    mx = (e.clientX / innerWidth  - .5) * 2;
+    my = (e.clientY / innerHeight - .5) * 2;
+    pedir();
+  }, {passive:true});
+  dibujar();
+}
+
+/* ---------- arranque ---------- */
+(async function(){
+  llenarSemestres();
+  await cargar();
+  pintarMalla();
+  actualizar();
+  paralaje();
+  document.getElementById('in-cr').oninput = pintarPlan;
+  document.getElementById('in-int').onchange = pintarPlan;
+  document.getElementById('in-start').onchange = pintarPlan;
+  /* la confirmación va en la propia página: confirm() queda bloqueado en
+     visores embebidos y ahí el botón no haría nada. */
+  const btn = document.getElementById('btn-reset');
+  let armado = null;
+  btn.onclick = ()=>{
+    if (!armado){
+      btn.dataset.armed = '';
+      btn.textContent = '¿Seguro? Toca otra vez';
+      armado = setTimeout(()=>{
+        armado = null;
+        delete btn.dataset.armed;
+        btn.textContent = 'Vaciar la malla';
+      }, 4000);
+      return;
+    }
+    clearTimeout(armado); armado = null;
+    delete btn.dataset.armed;
+    btn.textContent = 'Vaciar la malla';
+    estado = MALLA.map(()=>'p');
+    pintarMalla(); actualizar(); guardar();
+  };
+})();
+</script>
